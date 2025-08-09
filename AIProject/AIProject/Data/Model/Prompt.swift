@@ -106,13 +106,15 @@ enum Prompt {
             """
             \(redditPost)
             지금 보낸 건, reddit의 r/CryptoCurrecy community에서, 하루동안 좋아요를 가장 많이 받은 게시물 5개의 제목과 내용이야.
-            이 게시물들을 TodayInsightDTO를 기반으로 JSON으로 응답해줘.
+            
             struct CommunityInsightDTO: Codable {
                 /// 게시물을 기반으로 평가한 커뮤니티 분위기 (호재 / 악재 / 중립)
                 let todaysSentiment: String
-                /// 커뮤니티 분위기를 그렇게 평가한 이유 요약
+                /// 커뮤니티 분위기를 그렇게 평가한 이유를 문자열로 요약
                 let summary: String
             }
+            
+            이 게시물들을 CommunityInsightDTO를 기반으로 JSON으로 응답해줘.
             """
         }
     }

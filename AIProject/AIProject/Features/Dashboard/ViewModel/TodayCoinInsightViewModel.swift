@@ -36,7 +36,7 @@ final class TodayCoinInsightViewModel: ObservableObject {
             
             await MainActor.run {
                 sentiment = Sentiment.from(data.todaysSentiment)
-
+                
                 self.summary = data.summary.reduce("") { partialResult, element in
                     let (key, values) = element
                     var segment = ""
@@ -52,9 +52,11 @@ final class TodayCoinInsightViewModel: ObservableObject {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             }
         } catch {
-            print("오류 발생: \(error.localizedDescription)")
+            guard let ne = error as? NetworkError else { return print(error) }
+            
+            print(ne.log())
             await MainActor.run {
-                self.summary = "데이터를 불러오는 데 실패했어요"
+                self.summary = ne.localizedDescription
             }
         }
     }
@@ -75,7 +77,7 @@ final class TodayCoinInsightViewModel: ObservableObject {
                 }
                 result += "\n"
             }
-            .trimmingCharacters(in: .newlines)
+                .trimmingCharacters(in: .newlines)
             
             let alanData = try await alanAPIService.fetchCommunityInsight(from: communitySummary)
             
@@ -85,9 +87,11 @@ final class TodayCoinInsightViewModel: ObservableObject {
                 self.summary = alanData.summary
             }
         } catch {
-            print("오류 발생: \(error.localizedDescription)")
+            guard let ne = error as? NetworkError else { return print(error) }
+            
+            print(ne.log())
             await MainActor.run {
-                self.summary = "데이터를 불러오는 데 실패했어요"
+                self.summary = ne.localizedDescription
             }
         }
     }

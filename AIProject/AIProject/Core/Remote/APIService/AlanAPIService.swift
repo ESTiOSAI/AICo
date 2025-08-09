@@ -29,7 +29,7 @@ final class AlanAPIService {
         return alanResponseDTO
     }
     
-    /// 지정된 프롬프트와 작업 타입에 따라 응답을 받아 디코딩된 DTO를 반환합니다.
+    /// 지정된 프롬프트와 작업 타입에 따라 JSON String 응답을 받아 디코딩된 DTO를 반환합니다.
     ///
     /// - Parameters:
     ///   - prompt: 요청을 생성하는 프롬프트
@@ -39,15 +39,14 @@ final class AlanAPIService {
         let answer = try await fetchAnswer(content: prompt.content, action: action)
         
         guard let jsonData = answer.content.extractedJSON.data(using: .utf8) else {
-            throw DecodingError.dataCorrupted(
-                DecodingError.Context(
-                    codingPath: [],
-                    debugDescription: "extractedJSON 문자열을 UTF-8 데이터로 변환 실패"
-                )
-            )
+            throw NetworkError.encodingError
         }
         
-        return try JSONDecoder().decode(T.self, from: jsonData)
+        do {
+            return try JSONDecoder().decode(T.self, from: jsonData)
+        } catch let decodingError as DecodingError {
+            throw NetworkError.decodingError(decodingError)
+        }
     }
 }
 
@@ -76,21 +75,30 @@ extension AlanAPIService {
         let cacheURL = URL(string: "https://api.example.com/coins/\(coin.id)/overview")!
         let request = URLRequest(url: cacheURL, cachePolicy: .returnCacheDataElseLoad)
         if let cachedResponse = URLCache.shared.cachedResponse(for: request) {
-            return try JSONDecoder().decode(CoinOverviewDTO.self, from: cachedResponse.data)
+            do {
+                return try JSONDecoder().decode(CoinOverviewDTO.self, from: cachedResponse.data)
+            } catch let decodingError as DecodingError {
+                throw NetworkError.decodingError(decodingError)
+            }
         }
         
         let prompt = Prompt.generateOverView(coinKName: coin.koreanName)
         let dto: CoinOverviewDTO = try await fetchDTO(prompt: prompt, action: .coinReportGeneration)
-        let jsonData = try JSONEncoder().encode(dto)
-        
-        let response = URLResponse(
-            url: cacheURL,
-            mimeType: "application/json",
-            expectedContentLength: jsonData.count,
-            textEncodingName: "utf-8"
-        )
-        let cacheEntry = CachedURLResponse(response: response, data: jsonData)
-        URLCache.shared.storeCachedResponse(cacheEntry, for: request)
+            
+        do {
+            let jsonData = try JSONEncoder().encode(dto)
+            
+            let response = URLResponse(
+                url: cacheURL,
+                mimeType: "application/json",
+                expectedContentLength: jsonData.count,
+                textEncodingName: "utf-8"
+            )
+            let cacheEntry = CachedURLResponse(response: response, data: jsonData)
+            URLCache.shared.storeCachedResponse(cacheEntry, for: request)
+        } catch {
+            throw NetworkError.encodingError
+        }
         
         return dto
     }
