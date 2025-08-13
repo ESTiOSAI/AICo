@@ -14,8 +14,6 @@ struct ThemeView: View {
     var body: some View {
         VStack {
             HeaderView(heading: "테마 변경")
-                .padding(.top, 20)
-                .padding(.bottom, 20)
             SubheaderView(subheading: "차트 색상 변경")
                 .padding(.bottom, 20)
             
