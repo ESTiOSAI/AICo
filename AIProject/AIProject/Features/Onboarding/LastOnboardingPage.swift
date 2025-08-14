@@ -11,7 +11,8 @@ struct LastOnboardingPage: View {
     @AppStorage(AppStorageKey.investmentType) private var storedInvestmentType: String = ""
     
     @State private var selectedType: RiskTolerance?
-    
+    @StateObject private var vm = OnboardingViewModel()
+
     var onFinish: () -> Void
     
     var body: some View {
@@ -53,6 +54,9 @@ struct LastOnboardingPage: View {
             .padding(.horizontal, 16)
             
             Spacer()
+        }
+        .task {
+            await vm.loadCoinImages()
         }
     }
 }

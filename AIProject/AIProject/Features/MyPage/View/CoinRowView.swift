@@ -18,9 +18,7 @@ struct CoinRowView: View {
         HStack(spacing: 12) {
             Group {
                 if let url = imageURL {
-                    AsyncImage(url: url) { img in
-                        img.resizable().aspectRatio(contentMode: .fit)
-                    } placeholder: { ProgressView() }
+                    CachedAsyncImage(url: url)
                 } else {
                     Text(String(coin.coinSymbol.prefix(1)))
                         .font(.caption.bold())

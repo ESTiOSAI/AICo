@@ -104,11 +104,58 @@ final class CoinGeckoAPIService {
 
         // 키는 대문자 심볼로 통일
         return Dictionary(uniqueKeysWithValues:
-            dtos.compactMap { dto in
-                guard let url = dto.imageURL else { return nil }
-                return (dto.symbol.uppercased(), url)
-            }
+                            dtos.compactMap { dto in
+            guard let url = dto.imageURL else { return nil }
+            return (dto.symbol.uppercased(), url)
+        }
         )
     }
-}
 
+    //MARK: -- 온보딩 뷰에서 저장하는 새로운 fetch
+
+    func fetchCoinImagesByIDs(ids: [String], vsCurrency: String = "krw") async throws -> [CoinGeckoImageDTO] {
+        let trimmed = ids
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { !$0.isEmpty }
+
+        guard !trimmed.isEmpty else { return [] }
+
+        var comps = URLComponents(string: "\(endpoint)/coins/markets")
+        comps?.queryItems = [
+            URLQueryItem(name: "vs_currency", value: vsCurrency.lowercased()),
+            URLQueryItem(name: "ids", value: trimmed.joined(separator: ","))
+        ]
+
+        guard let url = comps?.url else { throw NetworkError.invalidURL }
+
+        let dtos: [CoinGeckoImageDTO] = try await network.request(url: url)
+        //print(dtos, dtos.count)
+        return dtos
+    }
+
+    func fetchImageMapByEnglishNames(
+        englishNames: [String],
+        vsCurrency: String = "krw"
+    ) async -> [String: URL] {
+        do {
+            // 1. 메타 데이터(API로 이미지 URL 목록 가져오기)
+            let dtos = try await fetchCoinImagesByIDs(ids: englishNames, vsCurrency: vsCurrency)
+
+            // 2. URLCache에 이미지 저장 (ImageLoader 활용)
+            var result: [String: URL] = [:]
+            for dto in dtos {
+                guard let url = dto.imageURL else { continue }
+                let symbol = dto.symbol.uppercased()
+                result[symbol] = url
+
+                // 미리 캐싱 — 네트워크 요청이 필요해도 URLCache에 저장됨
+                _ = try? await ImageLoader.shared.image(for: url)
+            }
+
+            return result
+        } catch {
+            print("네트워크 에러:", error.localizedDescription)
+            return [:]
+        }
+    }
+}
