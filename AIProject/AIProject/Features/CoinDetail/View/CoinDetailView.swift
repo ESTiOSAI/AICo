@@ -9,6 +9,7 @@ import SwiftUI
 
 struct CoinDetailView: View {
     @State private var selectedTab = 0
+    @Environment(\.dismiss) private var dismiss
     
     let coin: Coin
     
@@ -17,17 +18,26 @@ struct CoinDetailView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
+                /// 커스텀 백버튼
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 24, weight: .regular))
+                        .foregroundStyle(.aiCoLabel)
+                        .frame(width: 30, height: 36)
+                        .contentShape(Rectangle())
+                }
+                
                 Text(coin.koreanName)
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(.aiCoLabel)
 
                 Text(coin.id)                        
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.aiCoLabelSecondary)
 
                 Spacer()
             }
-            .padding(.bottom, 5)
+            .padding(.bottom, 10)
             
             HStack(spacing: 8) {
                 ForEach(tabs.indices, id: \.self) { index in
@@ -39,9 +49,10 @@ struct CoinDetailView: View {
                     }
                     .frame(height: 36)
                 }
+                
                 Spacer(minLength: 0)
             }
-            .padding(.bottom, 10)
+            .padding(.bottom, 15)
             
             ZStack(alignment: .topLeading) {
                 /// 차트 탭
@@ -60,14 +71,10 @@ struct CoinDetailView: View {
 
              Spacer(minLength: 0)
         }
-        .padding(.horizontal, 20) 
+        .padding(20)
         .background(.aiCoBackground)
-        .safeAreaInset(edge: .top) {
-            Color.clear.frame(height: 80)
-        }
-        .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 40)
-        }
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
