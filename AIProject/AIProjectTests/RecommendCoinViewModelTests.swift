@@ -8,7 +8,7 @@
 import XCTest
 @testable import AIProject
 
-struct AlanServiceStub: AlanAPIServiceProtocol {
+struct AlanServiceStub: AlanRecommendServiceProtocol {
     enum Fixtures {
         static let recommendDTOs: [RecommendCoinDTO] = [
             .init(name: "메이플 파이낸스", symbol: "KRW-SYRUP", comment: "A"),

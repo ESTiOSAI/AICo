@@ -29,16 +29,16 @@ final class ReportViewModel: ObservableObject {
     let coin: Coin
     let koreanName: String
     
-    private let alanAPIService = AlanAPIService()
+    private let alanAPIService: AlanAPIServiceProtocol
     
     private var overviewTask: Task<CoinOverviewDTO, Error>?
     private var weeklyTask: Task<CoinWeeklyDTO, Error>?
     private var todayTask: Task<CoinTodayNewsDTO, Error>?
     
-    init(coin: Coin) {
+    init(coin: Coin, service: AlanAPIServiceProtocol = AlanAPIService()) {
         self.coin = coin
         self.koreanName = coin.koreanName
-        
+        self.alanAPIService = service
         load()
     }
     
