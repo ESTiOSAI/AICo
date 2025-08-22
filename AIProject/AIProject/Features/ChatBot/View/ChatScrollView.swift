@@ -21,6 +21,7 @@ struct ChatScrollView<Content: View>: View {
     @State private var viewportHeight: CGFloat = .zero
     @State private var scrollOffSet: CGFloat = .zero
     @State private var contentHeight: CGFloat = .zero
+
     @Namespace private var coordinateSpaceName: Namespace.ID
     @ViewBuilder private var content: () -> Content
 
@@ -67,7 +68,16 @@ struct ChatScrollView<Content: View>: View {
                     }
             }
         }
-        .scrollDismissesKeyboard(.interactively)
+        .simultaneousGesture(
+            DragGesture().updating($isDragging) { _, state, _ in
+                state = true
+            }
+            .onEnded { drag in
+                if drag.translation.height > 50 {
+                    viewModel.isTapped.toggle()
+                }
+            }
+        )
         .contentMargins(.vertical, 16)
         .coordinateSpace(name: coordinateSpaceName)
         .background(
