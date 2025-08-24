@@ -22,8 +22,8 @@ import Foundation
 ///   - news: 오늘의 뉴스 기사 목록
 final class ReportViewModel: ObservableObject {
     @Published var overview: FetchState<AttributedString> = .loading
-    @Published var weekly: FetchState<String> = .loading
-    @Published var today: FetchState<String> = .loading
+    @Published var weekly: FetchState<AttributedString> = .loading
+    @Published var today: FetchState<AttributedString> = .loading
     @Published var news: [CoinArticle] = [CoinArticle(title: "", summary: "AI가 정보를 준비하고 있어요", newsSourceURL: "https://example.com/")]
     
     let coin: Coin
@@ -53,6 +53,7 @@ final class ReportViewModel: ObservableObject {
         }
         
         overviewTask = Task { try await alanAPIService.fetchOverview(for: coin) }
+        
         weeklyTask = Task { [weak self] in
             try await withTaskCancellationHandler(
                 operation: {
@@ -294,5 +295,35 @@ final class ReportViewModel: ObservableObject {
     
     deinit {
         cancelAll()
+    }
+}
+extension ReportViewModel {
+    var sectionDataSource: [ReportSectionData<AttributedString>] {
+        [
+            ReportSectionData(
+                id: "overview",
+                icon: "text.page.badge.magnifyingglass",
+                title: "한눈에 보는 \(koreanName)",
+                state: overview,
+                onCancel: { self.cancelOverview() },
+                onRetry: { self.retryOverview() }
+            ),
+            ReportSectionData(
+                id: "weekly",
+                icon: "calendar",
+                title: "주간 동향",
+                state: weekly,
+                onCancel: { self.cancelWeekly() },
+                onRetry: { self.retryWeekly() }
+            ),
+            ReportSectionData(
+                id: "today",
+                icon: "shareplay",
+                title: "오늘 시장의 분위기",
+                state: today,
+                onCancel: { self.cancelToday() },
+                onRetry: { self.retryToday() }
+            ),
+        ]
     }
 }

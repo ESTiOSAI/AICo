@@ -169,5 +169,25 @@ final class InsightViewModel: ObservableObject {
 
 extension InsightViewModel {
             }
+extension InsightViewModel {
+    var sectionDataSource: [ReportSectionData<Insight>] {
+        [
+            ReportSectionData(
+                id: "overall",
+                icon: "bitcoinsign.bank.building",
+                title: "전반적인 시장의 분위기",
+                state: overall,
+                onCancel: { self.cancelOverall() },
+                onRetry: { self.retryOverall() }
+            ),
+            ReportSectionData(
+                id: "community",
+                icon: "shareplay",
+                title: "주요 커뮤니티의 분위기",
+                state: community,
+                onCancel: { self.cancelCommunity() },
+                onRetry: { self.retryCommunity() }
+            ),
+        ]
     }
 }

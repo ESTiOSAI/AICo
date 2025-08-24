@@ -34,34 +34,15 @@ struct ReportView: View {
                 .foregroundStyle(.aiCoNeutral)
                 .lineSpacing(5)
             
-            ReportSectionView(
-                icon: "text.page.badge.magnifyingglass",
-                title: "한눈에 보는 \(viewModel.koreanName)",
-                state: viewModel.overview,
-                onCancel: { viewModel.cancelOverview() },
-                onRetry: { viewModel.retryOverview() }
-            ) { value in
-                Text(value)
-            }
-            
-            ReportSectionView(
-                icon: "calendar",
-                title: "주간 동향",
-                state: viewModel.weekly,
-                onCancel: { viewModel.cancelWeekly() },
-                onRetry: { viewModel.retryWeekly() }
-            ) { value in
-                Text(value.byCharWrapping)
-            }
-            
-            ReportSectionView(
-                icon: "shareplay",
-                title: "오늘 시장의 분위기",
-                state: viewModel.today,
-                onCancel: { viewModel.cancelToday() },
-                onRetry: { viewModel.retryToday() }
-            ) { value in
-                Text(value.byCharWrapping)
+            ForEach(viewModel.sectionDataSource) { data in
+                ReportSectionView(
+                    icon: data.icon,
+                    title: data.title,
+                    state: data.state,
+                    onCancel: data.onCancel,
+                    onRetry: data.onRetry,
+                    content: { Text($0) }
+                )
             }
             
             if case .success = viewModel.today,
