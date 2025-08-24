@@ -16,7 +16,6 @@ struct RecommendCoinScreen: View {
             
             coinContentView()
                 .frame(minHeight: CardConst.cardHeight)
-                .padding(.bottom, 40)
         }
     }
     

@@ -20,7 +20,16 @@ struct RecommendCoinView: View {
             .frame(height: CardConst.headerHeight + CardConst.headerContentSpacing + (CardConst.cardHeight / 2))
             
             RecommendCoinScreen(viewModel: viewModel)
+                .padding(.bottom, 30)
+            
+            VStack {
+                Spacer()
+                
+                TimestampWithRefreshButtonView(timestamp: Date.now, action: viewModel.loadRecommendCoin)
+                    .padding(.horizontal, 16)
+            }
         }
+        .padding(.bottom, 40)
     }
 }
 

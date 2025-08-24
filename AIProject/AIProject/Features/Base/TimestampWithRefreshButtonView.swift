@@ -24,7 +24,7 @@ struct TimestampWithRefreshButtonView: View {
             Spacer()
             
             Text("\(formattedTime) 기준")
-                .font(.system(size: 12))
+                .font(.system(size: 11))
                 .foregroundStyle(.aiCoLabelSecondary)
             
             RoundedButton(imageName: "arrow.counterclockwise", action: action)
