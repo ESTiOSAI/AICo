@@ -17,8 +17,8 @@ import Foundation
 ///
 /// - Properties:
 ///   - overview: 코인 개요 상태(`FetchState<AttributedString>`)
-///   - weekly: 주간 동향 상태(`FetchState<String>`)
-///   - today: 오늘의 시장 요약 상태(`FetchState<String>`)
+///   - weekly: 주간 동향 상태(`FetchState<AttributedString>`)
+///   - today: 오늘의 시장 요약 상태(`FetchState<AttributedString>`)
 ///   - news: 오늘의 뉴스 기사 목록
 final class ReportViewModel: ObservableObject {
     @Published var overview: FetchState<AttributedString> = .loading
@@ -42,7 +42,6 @@ final class ReportViewModel: ObservableObject {
         load()
     }
     
-    // 코인 개요, 주간 동향, 오늘 시장 요약/뉴스를 동시에 로드
     private func load() {
         cancelAll()
         
@@ -141,7 +140,6 @@ final class ReportViewModel: ObservableObject {
     func cancelWeekly() { weeklyTask?.cancel() }
     func cancelToday() { todayTask?.cancel() }
     
-    // 전체 Task 취소
     func cancelAll() {
         overviewTask?.cancel()
         weeklyTask?.cancel()

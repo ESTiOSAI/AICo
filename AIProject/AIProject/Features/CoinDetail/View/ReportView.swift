@@ -48,9 +48,9 @@ struct ReportView: View {
             if case .success = viewModel.today,
                !viewModel.news.allSatisfy({ $0.title.isEmpty && $0.summary.isEmpty }) {
                 ReportNewsSectionView(articles: viewModel.news)
-                    .padding(.bottom, 30)
             }
         }
+        .padding(.bottom, 30)
     }
 }
 
