@@ -82,20 +82,30 @@ final class ChartViewModel: ObservableObject {
         updateTask?.cancel() // 중복 시작 방지
         
         updateTask = Task { [weak self] in
-            await self?.loadPrices() // 최초 1회
+            guard let self else { return }
+
+            /// 이미 데이터가 있으면 스피너 없이 로드 (재진입 UX 안정)
+            let shouldShowSpinner = self.prices.isEmpty
             
+            /// 1) 최초 1회: 전체 로드 + 로딩 표시
+            await self.loadPrices(showLoading: true)
+            
+            /// 2) 이후: 60초마다 증분 갱신 (스피너 없음)
             while !Task.isCancelled {
                 _ = try? await Task.sleep(nanoseconds: 60 * 1_000_000_000)
                 
                 if Task.isCancelled { break } // 취소 시 즉시 종료
                 
-                await self?.loadPrices()
+                await self.refreshLatestCandles()
             }
         }
     }
     
     /// 네트워크/루프 중단
     func stopUpdating() {
+        #if DEBUG
+        print("[ChartVM] stopUpdating() — cancel loop for \(coinSymbol)")
+        #endif
         updateTask?.cancel()
         updateTask = nil
     }
@@ -119,9 +129,12 @@ final class ChartViewModel: ObservableObject {
     
     /// API로부터 실시간 가격 데이터를 불러와 시계열 배열로 갱신함
     /// - Parameter interval: 차트 간격 (기본: 1일)
-    func loadPrices(interval: CoinInterval = .all.first!) async {
+    func loadPrices(
+        interval: CoinInterval = .all.first!,
+        showLoading: Bool = true
+    ) async {
         /// 로딩 상태 진입 (초기/재시도 시 ProgressView와 동기화)
-        status = .loading
+        if showLoading { status = .loading }
         
         do {
             let marketCode = coinSymbol
@@ -179,15 +192,19 @@ final class ChartViewModel: ObservableObject {
             
             /// 성공 상태로 마무리 (데이터 유무는 뷰에서 처리)
             guard !Task.isCancelled else {
-                status = .cancel(.taskCancelled)
                 return
             }
-            status = .success
+            
+            if showLoading { status = .success }
         } catch is CancellationError {
-            status = .cancel(.taskCancelled)
+            #if DEBUG
+            print("[ChartVM] loadPrices cancelled — market=\(coinSymbol), last=\(String(describing: prices.last?.date)), count=\(prices.count)")
+            #endif
             return
         } catch NetworkError.taskCancelled {
-            status = .cancel(.taskCancelled)
+            #if DEBUG
+            print("[ChartVM] loadPrices taskCancelled — market=\(coinSymbol)")
+            #endif
             return
         } catch {
             let err = (error as? NetworkError)
@@ -196,10 +213,99 @@ final class ChartViewModel: ObservableObject {
             #if DEBUG
             print("가격 불러오기 실패: \(err.log())")
             #endif
-            status = .failure(err)
+            if showLoading {
+                status = .failure((error as? NetworkError) ?? .networkError(URLError(.unknown)))
+                lastUpdated = nil
+            }
+        }
+    }
+    
+    private func refreshLatestCandles() async {
+        do {
+            /// 초기에 로딩 실패 후(네트워크 등) prices가 비어있는 상태면 전체 24h 로드
+            if prices.isEmpty {
+                await loadPrices(showLoading: false)
+                return
+            }
             
-            /// 실패 시 기준 시각 초기화
-            lastUpdated = nil
+            let market = coinSymbol
+            let lastDate = prices.last?.date // 마지막 봉 시각
+
+            /// 마지막 봉 시각과 현재 시각 차이로 빈 분 수를 추정하여
+            /// 최소 2개 (현재 진행중 분 교체 + 새 분 추가 대비), 최대 200개 리턴
+            let gapMinutes: Int = {
+                guard let last = lastDate else { return 2 }
+                return max(2, min(200, Int(Date().timeIntervalSince(last) / 60) + 1))
+            }()
+            
+            /// 갭이 200분보다 크면 전체 24h 리로드
+            if gapMinutes > 200 {
+                await loadPrices(showLoading: false)
+                return
+            }
+
+            /// 최신 분봉들 N개
+            let latestDTOs = try await tickerAPI.fetchCandles(id: market, count: gapMinutes)
+            guard !latestDTOs.isEmpty else { return }
+
+            let ordered = latestDTOs.reversed()
+
+            /// 배열 병합
+            /// 같은 timestamp: 교체
+            /// 더 뒤 timestamp: append
+            /// 과거 timestamp: 무시
+            /// -> 맨 오른쪽 봉만 바뀌거나 하나 추가
+            for dto in ordered {
+                let d = dto.tradeDateTime
+                let existingIndex = prices.lastIndex(where: { $0.date == d })
+                let newIndex = existingIndex.map { prices[$0].index } ?? prices.count
+                
+                let newPrice = CoinPrice(
+                    date: d,
+                    open: dto.openingPrice,
+                    high: dto.highPrice,
+                    low: dto.lowPrice,
+                    close: dto.tradePrice,
+                    trade: dto.candleAccTradePrice,
+                    index: newIndex
+                )
+                
+                if let i = existingIndex {
+                    prices[i] = newPrice // 동일 시각이면 교체
+                } else if d > (prices.last?.date ?? .distantPast) {
+                    prices.append(newPrice) // 더 뒤 시각이면 추가
+                } else {
+                    /// 과거 데이터면 무시
+                    #if DEBUG
+                    print("과거 캔들 무시 - ", d)
+                    #endif
+                }
+            }
+
+            /// 24시간 초과분 정리 (메모리/도메인 관리)
+            let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
+            prices.removeAll(where: { $0.date < cutoff })
+
+            /// 헤더 동기 갱신 — UI 상태 변화 없음 (Progress View 없음)
+            async let tickerTask: [TickerValue] = tickerAPI.fetchTicker(by: currency)
+            if let t = try await tickerTask.first(where: { $0.id == market }) {
+                let signedRate = (t.change == .fall) ? -t.rate : t.rate
+                headerLastPrice  = t.price
+                headerChangeRate = signedRate * 100
+                headerChangePrice = signedRate != 0 ? (t.price - (t.price / (1 + signedRate))) : 0
+                headerAccTradePrice = t.volume
+            }
+
+            /// 마지막 갱신 시각 설정
+            lastUpdated = prices.last?.date
+        } catch is CancellationError {
+            #if DEBUG
+            print("[ChartVM] refreshLatestCandles cancelled - market=\(coinSymbol), last=\(String(describing: prices.last?.date)), count=\(prices.count)")
+            #endif
+        } catch {
+            #if DEBUG
+            print("refreshLatestCandles failed - \(error)")
+            #endif
         }
     }
     

@@ -82,8 +82,13 @@ struct ChartView: View {
             chartArea
         }
         .padding(20)
-        .onAppear { viewModel.checkBookmark() }
-        .onDisappear { viewModel.stopUpdating() }
+        .onAppear {
+            viewModel.checkBookmark()
+            viewModel.retry()
+        }
+        .onDisappear {
+            viewModel.stopUpdating()
+        }
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color.aiCoBackground)
@@ -194,23 +199,25 @@ private struct CandleChartView: View {
     let negativeColor: Color
     
     var body: some View {
-        Chart(data) { point in
-            /// 고가/저가 수직선 표시 (위꼬리/아래꼬리 역할)
-            RuleMark(
-                x: .value("Date", point.date),
-                yStart: .value("Low", point.low),
-                yEnd: .value("High", point.high)
-            )
-            .foregroundStyle( point.close >= point.open ? positiveColor : negativeColor )
-            
-            /// 시가/종가 직사각형 (실체 바)
-            RectangleMark(
-                x: .value("Date", point.date),
-                yStart: .value("Open", point.open),
-                yEnd: .value("Close", point.close),
-                width: 6
-            )
-            .foregroundStyle( point.close >= point.open ? positiveColor : negativeColor )
+        Chart {
+            ForEach(data, id: \.date) { point in
+                /// 고가/저가 수직선 표시 (위꼬리/아래꼬리 역할)
+                RuleMark(
+                    x: .value("Date", point.date),
+                    yStart: .value("Low", point.low),
+                    yEnd: .value("High", point.high)
+                )
+                .foregroundStyle( point.close >= point.open ? positiveColor : negativeColor )
+                
+                /// 시가/종가 직사각형 (실체 바)
+                RectangleMark(
+                    x: .value("Date", point.date),
+                    yStart: .value("Open", point.open),
+                    yEnd: .value("Close", point.close),
+                    width: 6
+                )
+                .foregroundStyle( point.close >= point.open ? positiveColor : negativeColor )
+            }
         }
         /// X축 도메인 설정 및 스크롤 위치 초기화
         .chartXScale(domain: xDomain)
