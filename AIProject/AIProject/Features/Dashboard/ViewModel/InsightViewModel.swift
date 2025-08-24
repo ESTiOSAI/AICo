@@ -42,6 +42,10 @@ final class InsightViewModel: ObservableObject {
             try await alanAPIService.fetchTodayInsight()
         }
         
+        communityTask = Task {
+            try await fetchCommunityFlow()
+        }
+        
         communityTask = Task { [weak self] in
             try await withTaskCancellationHandler(
                 operation: {
@@ -56,9 +60,9 @@ final class InsightViewModel: ObservableObject {
         }
         
         Task {
-            await awaitOverallAndUpdateUI()
+            await updateOverallUI()
             try? await Task.sleep(for: .milliseconds(350))
-            await awaitCommunityAndUpdateUI()
+            await updateCommunityUI()
         }
     }
     
@@ -66,57 +70,7 @@ final class InsightViewModel: ObservableObject {
     private func fetchCommunityFlow() async throws -> InsightDTO {
         let communityData = try await redditAPIService.fetchData()
         
-        return try await alanAPIService.fetchCommunityInsight(from: makeCommunitySummary(from: communityData))
-    }
-    
-    // overallTask 완료 후 UI 갱신
-    func awaitOverallAndUpdateUI() async {
-        do {
-            let data = try await overallTask?.value
-            if let data {
-                let insight = Insight(
-                    sentiment: Sentiment(rawValue: data.todaysSentiment) ?? .neutral,
-                    summary: data.summary
-                )
-                await MainActor.run { overall = .success(insight) }
-            }
-        } catch {
-            if error.isTaskCancellation {
-                await MainActor.run { overall = .cancel(.taskCancelled) }
-                return
-            }
-            if let ne = error as? NetworkError {
-                print(ne.log())
-                await MainActor.run { overall = .failure(ne) }
-            } else {
-                print(error)
-            }
-        }
-    }
-    
-    // communityTask 완료 후 UI 갱신
-    func awaitCommunityAndUpdateUI() async {
-        do {
-            let data = try await communityTask?.value
-            if let data {
-                let insight = Insight(
-                    sentiment: Sentiment(rawValue: data.todaysSentiment) ?? .neutral,
-                    summary: data.summary
-                )
-                await MainActor.run { community = .success(insight) }
-            }
-        } catch {
-            if error.isTaskCancellation {
-                await MainActor.run { community = .cancel(.taskCancelled) }
-                return
-            }
-            if let ne = error as? NetworkError {
-                print(ne.log())
-                await MainActor.run { community = .failure(ne) }
-            } else {
-                print(error)
-            }
-        }
+        return try await alanAPIService.fetchCommunityInsight(from: communityData.communitySummary)
     }
     
     // overall만 다시 시도
@@ -130,8 +84,8 @@ final class InsightViewModel: ObservableObject {
         
         overallTask = Task { try await alanAPIService.fetchTodayInsight() }
         
-        Task { [weak self] in
-            await self?.awaitOverallAndUpdateUI()
+        Task {
+            await updateOverallUI()
         }
     }
     
@@ -146,13 +100,20 @@ final class InsightViewModel: ObservableObject {
         
         communityTask = Task { try await fetchCommunityFlow() }
         
-        Task { [weak self] in
-            await self?.awaitCommunityAndUpdateUI()
+        Task {
+            await updateCommunityUI()
         }
     }
     
-    func cancelOverall() { overallTask?.cancel() }
-    func cancelCommunity() { communityTask?.cancel() }
+    func cancelOverall() {
+        overallTask?.cancel()
+        
+        // 취소 UI 업데이트 -> 그럼 취소 확인은?
+    }
+    
+    func cancelCommunity() {
+        communityTask?.cancel()
+    }
     
     // TODO: 탭 전환시 자동 cancel
     // 전체 Task 취소
@@ -168,7 +129,39 @@ final class InsightViewModel: ObservableObject {
 }
 
 extension InsightViewModel {
+    // overallTask 완료 후 UI 갱신
+    private func updateOverallUI() async {
+        await TaskResultHandler.applyResult(
+            of: overallTask,
+            using: { data in
+                Insight(
+                    sentiment: Sentiment(rawValue: data.todaysSentiment) ?? .neutral,
+                    summary: data.summary
+                )
+            },
+            update: { [weak self] state in
+                self?.overall = state
             }
+        )
+    }
+    
+    // communityTask 완료 후 UI 갱신
+    private func updateCommunityUI() async {
+        await TaskResultHandler.applyResult(
+            of: communityTask,
+            using: { data in
+                Insight(
+                    sentiment: Sentiment(rawValue: data.todaysSentiment) ?? .neutral,
+                    summary: data.summary
+                )
+            },
+            update: { [weak self] state in
+                self?.community = state
+            }
+        )
+    }
+}
+
 extension InsightViewModel {
     var sectionDataSource: [ReportSectionData<Insight>] {
         [
