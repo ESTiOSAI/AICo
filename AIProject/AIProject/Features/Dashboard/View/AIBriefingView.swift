@@ -53,33 +53,15 @@ struct AIBriefingView: View {
     
     @ViewBuilder
     private var briefingView: some View {
-        // FIXME: ViewType enum + struct -> 프로퍼티를 enum 값에 따라 전달
-        ReportSectionView(
-            icon: "bitcoinsign.bank.building",
-            title: "전반적인 시장의 분위기",
-            state: viewModel.overall,
-            onCancel: { viewModel.cancelOverall() },
-            onRetry: { viewModel.retryOverall() }
-        ) { value in
-            Text(value.sentiment.rawValue)
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(value.sentiment.color(for: themeManager.selectedTheme))
-        } content: { value in
-            Text(AttributedString(value.summary.byCharWrapping))
-        }
-        
-        ReportSectionView(
-            icon: "shareplay",
-            title: "주요 커뮤니티의 분위기",
-            state: viewModel.community,
-            onCancel: { viewModel.cancelCommunity() },
-            onRetry: { viewModel.retryCommunity() }
-        ) { value in
-            Text(value.sentiment.rawValue)
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(value.sentiment.color(for: themeManager.selectedTheme))
-        } content: { value in
-            Text(AttributedString(value.summary.byCharWrapping))
+        ForEach(viewModel.sectionDataSource) { data in
+            ReportSectionView(
+                icon: data.icon,
+                title: data.title,
+                state: data.state,
+                onCancel: data.onCancel,
+                onRetry: data.onRetry,
+                content: { Text($0.summary.byCharWrapping) }
+            )
         }
     }
 }
