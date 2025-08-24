@@ -69,13 +69,12 @@ struct ChatScrollView<Content: View>: View {
             }
         }
         .simultaneousGesture(
-            DragGesture().updating($isDragging) { _, state, _ in
-                state = true
-            }
-            .onEnded { drag in
-                if drag.translation.height > 50 {
+            DragGesture().updating($isDragging) { drag, state, _ in
+                if drag.translation.height > 100 {
                     viewModel.isTapped.toggle()
                 }
+
+                state = true
             }
         )
         .contentMargins(.vertical, 16)
