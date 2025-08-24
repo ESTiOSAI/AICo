@@ -60,6 +60,11 @@ struct AIBriefingView: View {
                 state: data.state,
                 onCancel: data.onCancel,
                 onRetry: data.onRetry,
+                trailing: {
+                    Text($0.sentiment.rawValue)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle($0.sentiment.color(for: themeManager.selectedTheme))
+                },
                 content: { Text($0.summary.byCharWrapping) }
             )
         }
