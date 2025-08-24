@@ -29,7 +29,6 @@ final class InsightViewModel: ObservableObject {
         load()
     }
     
-    // 전체 분위기와 커뮤니티 분위기를 동시에 로드
     private func load() {
         cancelAll()
         
@@ -107,29 +106,23 @@ final class InsightViewModel: ObservableObject {
     
     func cancelOverall() {
         overallTask?.cancel()
-        
-        // 취소 UI 업데이트 -> 그럼 취소 확인은?
     }
     
     func cancelCommunity() {
         communityTask?.cancel()
     }
     
-    // TODO: 탭 전환시 자동 cancel
-    // 전체 Task 취소
     func cancelAll() {
         overallTask?.cancel()
         communityTask?.cancel()
     }
     
-    // TODO: 언제 deinit되는지 확인해보기
     deinit {
         cancelAll()
     }
 }
 
 extension InsightViewModel {
-    // overallTask 완료 후 UI 갱신
     private func updateOverallUI() async {
         await TaskResultHandler.applyResult(
             of: overallTask,
@@ -145,7 +138,6 @@ extension InsightViewModel {
         )
     }
     
-    // communityTask 완료 후 UI 갱신
     private func updateCommunityUI() async {
         await TaskResultHandler.applyResult(
             of: communityTask,
