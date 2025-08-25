@@ -55,11 +55,7 @@ struct AIBriefingView: View {
     private var briefingView: some View {
         ForEach(viewModel.sectionDataSource) { data in
             ReportSectionView(
-                icon: data.icon,
-                title: data.title,
-                state: data.state,
-                onCancel: data.onCancel,
-                onRetry: data.onRetry,
+                data: data,
                 trailing: {
                     Text($0.sentiment.rawValue)
                         .font(.system(size: 16, weight: .bold))

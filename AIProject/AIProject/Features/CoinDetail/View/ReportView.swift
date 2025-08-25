@@ -36,11 +36,7 @@ struct ReportView: View {
             
             ForEach(viewModel.sectionDataSource) { data in
                 ReportSectionView(
-                    icon: data.icon,
-                    title: data.title,
-                    state: data.state,
-                    onCancel: data.onCancel,
-                    onRetry: data.onRetry,
+                    data: data,
                     content: { Text($0) }
                 )
             }
