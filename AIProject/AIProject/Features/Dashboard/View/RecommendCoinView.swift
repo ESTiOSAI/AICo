@@ -26,7 +26,7 @@ struct RecommendCoinView: View {
             VStack {
                 Spacer()
                 
-                TimestampWithRefreshButtonView(timestamp: Date.now, action: viewModel.loadRecommendCoin)
+                TimestampWithRefreshButtonView(timestamp: Date.now, action: { viewModel.loadRecommendCoin() })
                     .padding(.horizontal, 16)
             }
         }

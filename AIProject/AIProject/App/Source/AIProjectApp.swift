@@ -33,6 +33,8 @@ struct AIProjectApp: App {
             if isLoading {
                 SplashScreenView()
                     .onAppear {
+                        if hasSeenOnboarding { recommendCoinViewModel.loadRecommendCoin() }
+                        
                         Task {
                             try await Task.sleep(nanoseconds: 3000_000_000)
                             isLoading = false
