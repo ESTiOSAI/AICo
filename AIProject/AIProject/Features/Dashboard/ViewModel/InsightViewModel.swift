@@ -5,7 +5,7 @@
 //  Created by 장지현 on 8/6/25.
 //
 
-import Foundation
+import SwiftUI
 
 /// 오늘의 코인 시장/커뮤니티 분위기를 제공하는 뷰 모델입니다.
 ///
@@ -16,6 +16,9 @@ import Foundation
 ///   - overall: 오늘의 전체 시장 분위기(`FetchState<Insight>`)
 ///   - community: 커뮤니티 기반 분위기(`FetchState<Insight>`)
 final class InsightViewModel: ObservableObject {
+    @AppStorage(AppStorageKey.cacheBriefTodayTimestamp) private var cacheBriefTodayTimestamp: String = ""
+    @AppStorage(AppStorageKey.cacheBriefCommunityTimestamp) private var cacheBriefCommunityTimestamp: String = ""
+    
     @Published var overall: FetchState<Insight> = .loading
     @Published var community: FetchState<Insight> = .loading
     
@@ -41,10 +44,7 @@ final class InsightViewModel: ObservableObject {
             try await alanAPIService.fetchTodayInsight()
         }
         
-        communityTask = Task {
-            try await fetchCommunityFlow()
-        }
-        
+        // FIXME: 통일감이 없어보이는
         communityTask = Task { [weak self] in
             try await withTaskCancellationHandler(
                 operation: {
@@ -83,7 +83,7 @@ final class InsightViewModel: ObservableObject {
         
         overallTask = Task { try await alanAPIService.fetchTodayInsight() }
         
-        Task {
+        Task { // FIXME: 메인액터 명시...
             await updateOverallUI()
         }
     }
@@ -106,6 +106,7 @@ final class InsightViewModel: ObservableObject {
     
     func cancelOverall() {
         overallTask?.cancel()
+        // FIXME: 취소 작업을 여기서 구현한다면
     }
     
     func cancelCommunity() {
@@ -162,6 +163,7 @@ extension InsightViewModel {
                 icon: "bitcoinsign.bank.building",
                 title: "전반적인 시장의 분위기",
                 state: overall,
+                timestamp: Date.dateAndTimeFormatter.date(from: cacheBriefTodayTimestamp),
                 onCancel: { self.cancelOverall() },
                 onRetry: { self.retryOverall() }
             ),
@@ -170,6 +172,7 @@ extension InsightViewModel {
                 icon: "shareplay",
                 title: "주요 커뮤니티의 분위기",
                 state: community,
+                timestamp: Date.dateAndTimeFormatter.date(from: cacheBriefCommunityTimestamp),
                 onCancel: { self.cancelCommunity() },
                 onRetry: { self.retryCommunity() }
             ),
