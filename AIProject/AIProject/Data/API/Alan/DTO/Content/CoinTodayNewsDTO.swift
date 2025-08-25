@@ -14,3 +14,9 @@ struct CoinTodayNewsDTO: Codable {
     /// 뉴스 배열, 3개
     let articles: [CoinArticleDTO]
 }
+
+extension CoinTodayNewsDTO {
+    var today: AttributedString {
+        AttributedString(summaryOfTodaysMarketSentiment.byCharWrapping)
+    }
+}

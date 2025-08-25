@@ -7,6 +7,15 @@
 
 import SwiftUI
 
+struct ReportSectionData<Value>: Identifiable {
+    let id: String
+    let icon: String
+    let title: String
+    let state: FetchState<Value>
+    let onCancel: () -> Void
+    let onRetry: () -> Void
+}
+
 struct ReportSectionView<Value, Trailing: View, Content: View>: View {
     let icon: String
     let title: String
