@@ -6,9 +6,13 @@
 //
 
 import Foundation
+import SwiftUI
 
 /// 앨런 API 관련 서비스를 제공합니다.
 final class AlanAPIService: AlanAPIServiceProtocol {
+    @AppStorage(AppStorageKey.cacheBriefTodayTimestamp) private var cacheBriefTodayTimestamp: String = ""
+    @AppStorage(AppStorageKey.cacheBriefCommunityTimestamp) private var cacheBriefCommunityTimestamp: String = ""
+    
     private let network: NetworkClient
     private let endpoint: String = "https://kdt-api-function.azurewebsites.net/api/v1/question"
     
@@ -37,7 +41,7 @@ final class AlanAPIService: AlanAPIServiceProtocol {
     /// - Returns: 디코딩된 DTO 객체
     private func fetchDTO<T: Decodable>(prompt: Prompt, action: AlanAction) async throws -> T {
         let answer = try await fetchAnswer(content: prompt.content, action: action)
-
+        
         guard let jsonData = answer.content.extractedJSON.data(using: .utf8) else {
             throw NetworkError.encodingError
         }
@@ -74,7 +78,7 @@ extension AlanAPIService {
     /// - Returns: 디코딩된 개요 DTO
     func fetchOverview(for coin: Coin) async throws -> CoinOverviewDTO {
         // 캐시된 응답이 있으면 바로 반환
-        let cacheURL = URL(string: "https://api.example.com/coins/\(coin.id)/overview")!
+        let cacheURL = URL(string: "https://cache.local/coins/\(coin.id)/overview")!
         let request = URLRequest(url: cacheURL, cachePolicy: .returnCacheDataElseLoad)
         if let cachedResponse = URLCache.shared.cachedResponse(for: request) {
             do {
@@ -86,7 +90,7 @@ extension AlanAPIService {
         
         let prompt = Prompt.generateOverView(coinKName: coin.koreanName)
         let dto: CoinOverviewDTO = try await fetchDTO(prompt: prompt, action: .coinReportGeneration)
-            
+        
         do {
             let jsonData = try JSONEncoder().encode(dto)
             
@@ -104,7 +108,7 @@ extension AlanAPIService {
         
         return dto
     }
-
+    
     /// 사용자의 투자 성향과 관심 코인을 기반으로 추천 코인 목록을 요청합니다.
     ///
     /// - Parameters:
@@ -116,7 +120,7 @@ extension AlanAPIService {
         let prompt = Prompt.recommendCoin(preference: preference, bookmark: bookmarkCoins)
         return try await fetchDTO(prompt: prompt, action: .coinRecomendation)
     }
-
+    
     /// 주어진 코인에 대해 주간 트렌드 데이터를 가져옵니다.
     ///
     /// - Parameter coin: 대상 코인
@@ -134,25 +138,117 @@ extension AlanAPIService {
         let prompt = Prompt.generateTodayNews(coinKName: coin.koreanName)
         return try await fetchDTO(prompt: prompt, action: .coinReportGeneration)
     }
-    
+
     /// 주어진 코인에 대해 2시간 단위 전체 시장 요약 데이터를 가져옵니다.
     ///
+    /// 캐시가 있다면 캐시된 데이터를 먼저 반환하고, 없으면 새로 요청 후 캐싱합니다.
     /// - Parameter coin: 대상 코인
     /// - Returns: 디코딩된 DTO
-    func fetchTodayInsight() async throws -> InsightDTO {
+    func fetchTodayInsight(now: Date = .now) async throws -> InsightDTO {
+        let insightTTL: TimeInterval = 60 * 60
+        
+        if !cacheBriefTodayTimestamp.isEmpty,
+           let savedDate = Date.dateAndTimeFormatter.date(from: cacheBriefTodayTimestamp) {
+            let cacheURL = URL(string: "https://cache.local/dashboard/today/\(cacheBriefTodayTimestamp)")!
+            let request = URLRequest(url: cacheURL, cachePolicy: .returnCacheDataElseLoad)
+            
+            if let cachedResponse = URLCache.shared.cachedResponse(for: request),
+                now.timeIntervalSince(savedDate) < insightTTL {
+                do {
+                    return try JSONDecoder().decode(InsightDTO.self, from: cachedResponse.data)
+                } catch let decodingError as DecodingError {
+                    throw NetworkError.decodingError(decodingError)
+                }
+            }
+        }
+        
+        let cacheURL = URL(string: "https://cache.local/dashboard/today/\(now.dateAndTime)")!
+        let request = URLRequest(url: cacheURL, cachePolicy: .returnCacheDataElseLoad)
+        
         let prompt = Prompt.generateTodayInsight
-        return try await fetchDTO(prompt: prompt, action: .dashboardBriefingGeneration)
+        let dto: InsightDTO = try await fetchDTO(prompt: prompt, action: .dashboardBriefingGeneration)
+        
+        do {
+            let jsonData = try JSONEncoder().encode(dto)
+            
+            let response = URLResponse(
+                url: cacheURL,
+                mimeType: "application/json",
+                expectedContentLength: jsonData.count,
+                textEncodingName: "utf-8"
+            )
+            let cacheEntry = CachedURLResponse(response: response, data: jsonData)
+            URLCache.shared.storeCachedResponse(cacheEntry, for: request)
+        } catch {
+            throw NetworkError.encodingError
+        }
+        
+        if !cacheBriefTodayTimestamp.isEmpty {
+            let oldCacheURL = URL(string: "https://cache.local/dashboard/today/\(cacheBriefTodayTimestamp)")!
+            let oldRequest = URLRequest(url: oldCacheURL, cachePolicy: .returnCacheDataElseLoad)
+            URLCache.shared.removeCachedResponse(for: oldRequest)
+        }
+
+        cacheBriefTodayTimestamp = now.dateAndTime
+        
+        return dto
     }
     
     /// 주어진 코인에 대해 커뮤니티 기반 인사이트 데이터를 가져옵니다.
     ///
+    /// 캐시가 있다면 캐시된 데이터를 먼저 반환하고, 없으면 새로 요청 후 캐싱합니다.
     /// - Parameter coin: 대상 코인
     /// - Returns: 디코딩된 DTO
-    func fetchCommunityInsight(from post: String) async throws -> InsightDTO {
+    func fetchCommunityInsight(from post: String, now: Date = .now) async throws -> InsightDTO {
+        let insightTTL: TimeInterval = 60 * 60
+        
+        if !cacheBriefCommunityTimestamp.isEmpty,
+           let savedDate = Date.dateAndTimeFormatter.date(from: cacheBriefCommunityTimestamp) {
+            let cacheURL = URL(string: "https://cache.local/dashboard/community/\(cacheBriefCommunityTimestamp)")!
+            let request = URLRequest(url: cacheURL, cachePolicy: .returnCacheDataElseLoad)
+            
+            if let cachedResponse = URLCache.shared.cachedResponse(for: request),
+                now.timeIntervalSince(savedDate) < insightTTL {
+                do {
+                    return try JSONDecoder().decode(InsightDTO.self, from: cachedResponse.data)
+                } catch let decodingError as DecodingError {
+                    throw NetworkError.decodingError(decodingError)
+                }
+            }
+        }
+        
+        let cacheURL = URL(string: "https://cache.local/dashboard/community/\(now.dateAndTime)")!
+        let request = URLRequest(url: cacheURL, cachePolicy: .returnCacheDataElseLoad)
+        
         let prompt = Prompt.generateCommunityInsight(redditPost: post)
-        return try await fetchDTO(prompt: prompt, action: .dashboardBriefingGeneration)
-    }
+        let dto: InsightDTO = try await fetchDTO(prompt: prompt, action: .dashboardBriefingGeneration)
+        
+        do {
+            let jsonData = try JSONEncoder().encode(dto)
+            
+            let response = URLResponse(
+                url: cacheURL,
+                mimeType: "application/json",
+                expectedContentLength: jsonData.count,
+                textEncodingName: "utf-8"
+            )
+            let cacheEntry = CachedURLResponse(response: response, data: jsonData)
+            URLCache.shared.storeCachedResponse(cacheEntry, for: request)
+        } catch {
+            throw NetworkError.encodingError
+        }
+        
+        if !cacheBriefCommunityTimestamp.isEmpty {
+            let oldCacheURL = URL(string: "https://cache.local/dashboard/community/\(cacheBriefCommunityTimestamp)")!
+            let oldRequest = URLRequest(url: oldCacheURL, cachePolicy: .returnCacheDataElseLoad)
+            URLCache.shared.removeCachedResponse(for: oldRequest)
+        }
 
+        cacheBriefCommunityTimestamp = Date.dateAndTimeFormatter.string(from: now)
+        
+        return dto
+    }
+    
     /// 북마크된 코인 전체에 대한 투자 브리핑과 전략 제안을 JSON 형식으로 가져옵니다.
     func fetchBookmarkBriefing(for coins: [BookmarkEntity], character: InvestmentCharacter) async throws -> PortfolioBriefingDTO {
         let coinNames = coins.map { $0.coinID }.joined(separator: ", ")

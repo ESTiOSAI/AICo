@@ -17,3 +17,13 @@ struct CoinWeeklyDTO: Codable {
     /// 지난 일주일간 가격 추이와 거래량 변화의 주요 원인
     let reason: String
 }
+
+extension CoinWeeklyDTO {
+    var weekly: AttributedString {
+        AttributedString("""
+        - 가격 추이: \(priceTrend)
+        - 거래량 변화: \(volumeChange)
+        - 원인: \(reason)
+        """.byCharWrapping)
+    }
+}
