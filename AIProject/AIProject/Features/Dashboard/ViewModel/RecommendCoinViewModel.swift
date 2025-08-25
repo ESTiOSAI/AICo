@@ -38,11 +38,12 @@ final class RecommendCoinViewModel: ObservableObject {
     ) {
         self.alanService = alanService
         self.upbitService = upbitService
-        loadRecommendCoin()
     }
 
     /// 비동기로 추천 코인 목록을 가져옵니다.
-    func loadRecommendCoin() {
+    ///
+    /// selectedPreference: 사용자가 선택한 투자 성향, 없을 시 UserDefaults에서 조회
+    func loadRecommendCoin(selectedPreference: String? = nil) {
         task = Task {
             do {
                 await MainActor.run {
@@ -51,7 +52,10 @@ final class RecommendCoinViewModel: ObservableObject {
                 }
 
                 let bookmarkCoins = try BookmarkManager.shared.fetchAll().map { $0.coinKoreanName }.joined(separator: ", ")
-                let recommendCoinDTOs = try await alanService.fetchRecommendCoins(preference: userInvestmentType, bookmarkCoins: bookmarkCoins)  
+                let recommendCoinDTOs = try await alanService.fetchRecommendCoins(
+                    preference: selectedPreference ?? userInvestmentType,
+                    bookmarkCoins: bookmarkCoins
+                )
                 
                 let results = await fetchRecommendCoins(from: recommendCoinDTOs)
 

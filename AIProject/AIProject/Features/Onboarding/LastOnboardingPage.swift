@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct LastOnboardingPage: View {
+    @EnvironmentObject var recommendCoinViewModel: RecommendCoinViewModel
+    
     @AppStorage(AppStorageKey.investmentType) private var storedInvestmentType: String = ""
     
     @State private var selectedType: RiskTolerance?
@@ -45,6 +47,7 @@ struct LastOnboardingPage: View {
                     storedInvestmentType = selected.rawValue
                     
                     print("저장된 투자 성향: \(storedInvestmentType.isEmpty ? "없음" : storedInvestmentType)")
+                    recommendCoinViewModel.loadRecommendCoin(selectedPreference: storedInvestmentType)
                 }
                 onFinish()
             }

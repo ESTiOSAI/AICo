@@ -114,6 +114,7 @@ extension AlanAPIService {
     ///     예: `"비트코인, 이더리움"`
     func fetchRecommendCoins(preference: String, bookmarkCoins: String) async throws -> [RecommendCoinDTO] {
         let prompt = Prompt.recommendCoin(preference: preference, bookmark: bookmarkCoins)
+        print("▶️ 프롬프트 :", prompt.content)
         return try await fetchDTO(prompt: prompt, action: .coinRecomendation)
     }
 

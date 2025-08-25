@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct RecommendCoinScreen: View {
-    @ObservedObject var viewModel: RecommendCoinViewModel
+    @EnvironmentObject var viewModel: RecommendCoinViewModel
     
     var body: some View {
         VStack(alignment: .center, spacing: CardConst.headerContentSpacing) {
@@ -16,7 +16,6 @@ struct RecommendCoinScreen: View {
             
             coinContentView()
                 .frame(minHeight: CardConst.cardHeight)
-                .padding(.bottom, 40)
         }
     }
     
