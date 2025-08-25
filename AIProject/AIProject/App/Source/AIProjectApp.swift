@@ -38,3 +38,23 @@ struct AIProjectApp: App {
     }
 }
 
+struct SplashScreenView: View {
+    @State private var opacity: Double = 0.0
+
+    var body: some View {
+        ZStack {
+            Color.accentColor
+                .edgesIgnoringSafeArea(.all)
+            Image("logo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 200, height: 200)
+                .opacity(opacity)
+                .onAppear {
+                    withAnimation(.easeIn(duration: 1.5)) {
+                        opacity = 1.0
+                    }
+                }
+        }
+    }
+}
