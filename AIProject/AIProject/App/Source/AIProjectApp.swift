@@ -24,15 +24,30 @@ struct AIProjectApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     @StateObject private var themeManager = ThemeManager()
+    @StateObject private var recommendCoinViewModel = RecommendCoinViewModel()
+    
+    @State private var isLoading = true
     
     var body: some Scene {
         WindowGroup {
-            if hasSeenOnboarding {
-                MainTabView()
-                    .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                    .environmentObject(themeManager)
+            if isLoading {
+                SplashScreenView()
+                    .onAppear {
+                        Task {
+                            try await Task.sleep(nanoseconds: 3000_000_000)
+                            isLoading = false
+                        }
+                    }
             } else {
-                OnboardingView()
+                if hasSeenOnboarding {
+                    MainTabView()
+                        .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                        .environmentObject(themeManager)
+                        .environmentObject(recommendCoinViewModel)
+                } else {
+                    OnboardingView()
+                        .environmentObject(recommendCoinViewModel)
+                }
             }
         }
     }
